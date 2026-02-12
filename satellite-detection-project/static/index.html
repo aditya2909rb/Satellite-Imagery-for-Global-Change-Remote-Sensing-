@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🛰️ Satellite Fire Detection Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #ff4444;
+            --danger: #dc3545;
+            --warning: #ffc107;
+            --success: #28a745;
+            --info: #17a2b8;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .navbar {
+            background: linear-gradient(90deg, #ff4444 0%, #ff6666 100%) !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            padding: 1rem 0;
+        }
+
+        .navbar-brand {
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: white !important;
+        }
+
+        .container-main {
+            padding: 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .card {
+            border: none;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin-bottom: 1.5rem;
+            transition: transform 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%);
+            color: white;
+            border-radius: 10px 10px 0 0 !important;
+            padding: 1.5rem;
+            font-weight: 600;
+            border: none;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+        }
+
+        .tab-content {
+            background: white;
+            border-radius: 0 0 10px 10px;
+            padding: 2rem;
+        }
+
+        .nav-tabs .nav-link {
+            color: #666;
+            border: none;
+            font-weight: 500;
+            transition: all 0.3s;
+        }
+
+        .nav-tabs .nav-link.active {
+            background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%);
+            color: white;
+            border: none;
+        }
+
+        .nav-tabs .nav-link:hover {
+            color: #ff4444;
+            border-bottom: 3px solid #ff4444;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%);
+            border: none;
+            padding: 0.7rem 1.5rem;
+            border-radius: 25px;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(255,68,68,0.4);
+            color: white;
+        }
+
+        .stat-box {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1rem;
+            text-align: center;
+        }
+
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            margin: 0.5rem 0;
+        }
+
+        .stat-label {
+            font-size: 0.9rem;
+            opacity: 0.9;
+        }
+
+        .fire-icon {
+            color: #ff4444;
+            margin-right: 0.5rem;
+        }
+
+        .alert-box {
+            background: white;
+            border-left: 5px solid #ff4444;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 5px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .alert-high {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+
+        .alert-medium {
+            border-left-color: #ffc107;
+            background: #fffbf0;
+        }
+
+        .alert-low {
+            border-left-color: #17a2b8;
+            background: #f0f8fb;
+        }
+
+        .confidence-bar {
+            background: linear-gradient(90deg, #ff4444 0%, #28a745 100%);
+            height: 25px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            padding-right: 0.5rem;
+            color: white;
+            font-weight: bold;
+            font-size: 0.8rem;
+        }
+
+        .form-label {
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .form-control, .form-select {
+            border-radius: 8px;
+            border: 2px solid #ddd;
+            padding: 0.7rem;
+            transition: border-color 0.3s;
+        }
+
+        .form-control:focus, .form-select:focus {
+            border-color: #ff4444;
+            box-shadow: 0 0 10px rgba(255,68,68,0.2);
+        }
+
+        .badge {
+            padding: 0.5rem 1rem;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+
+        .badge-fire {
+            background: #ff4444;
+            color: white;
+        }
+
+        .badge-smoke {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .badge-dust {
+            background: #8b7500;
+            color: white;
+        }
+
+        #map {
+            height: 500px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            margin: 1rem 0;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #ff4444;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .detection-table {
+            background: white;
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        .table thead {
+            background: linear-gradient(135deg, #ff4444 0%, #ff6666 100%);
+            color: white;
+        }
+
+        .table tbody tr {
+            transition: background 0.3s;
+        }
+
+        .table tbody tr:hover {
+            background: #f0f0f0;
+        }
+
+        .progress {
+            height: 25px;
+            border-radius: 5px;
+        }
+
+        .export-btn {
+            background: #28a745;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 0.5rem;
+        }
+
+        .export-btn:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .email-config {
+            background: #f8f9fa;
+            padding: 1.5rem;
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+
+        .success-msg {
+            background: #d4edda;
+            color: #155724;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        .error-msg {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            display: none;
+        }
+
+        footer {
+            background: rgba(0,0,0,0.1);
+            color: white;
+            text-align: center;
+            padding: 2rem;
+            margin-top: 3rem;
+        }
+
+        @media (max-width: 768px) {
+            .container-main {
+                padding: 1rem;
+            }
+            
+            .stat-box {
+                margin-bottom: 1rem;
+            }
+            
+            .card-header {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav class="navbar navbar-dark">
+        <div class="container-fluid">
+            <span class="navbar-brand">
+                <i class="fas fa-satellite"></i> 🔥 Satellite Fire Detection Dashboard
+            </span>
+            <span style="color: white;">Real-time detection from NASA satellites</span>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="container-main">
+        <!-- Status Messages -->
+        <div class="success-msg" id="successMsg"></div>
+        <div class="error-msg" id="errorMsg"></div>
+
+        <!-- Dashboard Stats -->
+        <div class="row mb-4">
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <i class="fas fa-fire fire-icon" style="font-size: 2rem;"></i>
+                    <div class="stat-number" id="totalFires">0</div>
+                    <div class="stat-label">Total Fires Detected</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <i class="fas fa-cloud" style="font-size: 2rem; color: #ffc107;"></i>
+                    <div class="stat-number" id="avgConfidence">0%</div>
+                    <div class="stat-label">Average Confidence</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <i class="fas fa-envelope" style="font-size: 2rem; color: #17a2b8;"></i>
+                    <div class="stat-number" id="alertsSent">0</div>
+                    <div class="stat-label">Alerts Sent</div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="stat-box">
+                    <i class="fas fa-power-output" style="font-size: 2rem; color: #ff6666;"></i>
+                    <div class="stat-number" id="totalPower">0 MW</div>
+                    <div class="stat-label">Thermal Power</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <ul class="nav nav-tabs mb-3">
+            <li class="nav-item">
+                <a class="nav-link active" href="#dashboard" data-bs-toggle="tab">
+                    <i class="fas fa-chart-pie"></i> Dashboard
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#detect" data-bs-toggle="tab">
+                    <i class="fas fa-search"></i> Detect
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#history" data-bs-toggle="tab">
+                    <i class="fas fa-history"></i> History
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#export" data-bs-toggle="tab">
+                    <i class="fas fa-download"></i> Export
+                </a>
+            </li>
+            <li class="nav-item">
+                <a class="nav-link" href="#alerts" data-bs-toggle="tab">
+                    <i class="fas fa-bell"></i> Email Alerts
+                </a>
+            </li>
+        </ul>
+
+        <!-- Tab Content -->
+        <div class="tab-content">
+            <!-- Dashboard Tab -->
+            <div class="tab-pane fade show active" id="dashboard">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-map"></i> Detection Map
+                    </div>
+                    <div class="card-body">
+                        <div id="map"></div>
+                        <p style="margin-top: 1rem; font-size: 0.9rem; color: #666;">
+                            <i class="fas fa-circle" style="color: red;"></i> High Confidence (>90%) |
+                            <i class="fas fa-circle" style="color: orange;"></i> Medium Confidence (70-90%) |
+                            <i class="fas fa-circle" style="color: yellow;"></i> Low Confidence (<70%)
+                        </p>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-list"></i> Recent Detections
+                    </div>
+                    <div class="card-body">
+                        <div id="recentDetections" style="max-height: 400px; overflow-y: auto;">
+                            <p class="text-muted">No detections yet. Run a detection to see results here.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detect Tab -->
+            <div class="tab-pane fade" id="detect">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-search"></i> Fire & Smoke Detection
+                    </div>
+                    <div class="card-body">
+                        <form id="detectionForm">
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Latitude</label>
+                                        <input type="number" class="form-control" id="latitude" step="0.001" value="35.0" required>
+                                        <small class="text-muted">e.g., 35.0 for 35°N</small>
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Longitude</label>
+                                        <input type="number" class="form-control" id="longitude" step="0.001" value="-110.0" required>
+                                        <small class="text-muted">e.g., -110.0 for 110°W</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Search Radius (km)</label>
+                                        <input type="number" class="form-control" id="radius" min="1" max="200" value="50">
+                                    </div>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="mb-3">
+                                        <label class="form-label">Confidence Threshold</label>
+                                        <input type="range" class="form-range" id="confidence" min="0" max="100" value="70">
+                                        <small id="confidenceDisplay">70%</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <button type="button" class="btn btn-primary" onclick="detectFires()">
+                                <i class="fas fa-fire"></i> Detect Fires
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="detectSmoke()">
+                                <i class="fas fa-cloud"></i> Detect Smoke
+                            </button>
+                        </form>
+
+                        <div class="loading" id="detectLoading">
+                            <div class="spinner"></div>
+                            <p>Analyzing satellite imagery...</p>
+                        </div>
+
+                        <div id="detectionResults" style="margin-top: 2rem;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- History Tab -->
+            <div class="tab-pane fade" id="history">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-history"></i> Historical Data
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <button type="button" class="btn btn-primary" onclick="loadHistory()">
+                                <i class="fas fa-refresh"></i> Load History (Last 24 Hours)
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="loadHistory(7)">
+                                <i class="fas fa-refresh"></i> Load History (Last 7 Days)
+                            </button>
+                            <button type="button" class="btn btn-primary" onclick="loadHistory(30)">
+                                <i class="fas fa-refresh"></i> Load History (Last 30 Days)
+                            </button>
+                        </div>
+
+                        <div id="historyResults" style="max-height: 500px; overflow-y: auto;">
+                            <p class="text-muted">Click a button above to load historical data.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Export Tab -->
+            <div class="tab-pane fade" id="export">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-download"></i> Data Export
+                    </div>
+                    <div class="card-body">
+                        <p>Export your detection data in multiple formats:</p>
+                        <div class="mb-3">
+                            <button class="export-btn" onclick="exportData('csv')">
+                                <i class="fas fa-file-csv"></i> Download CSV
+                            </button>
+                            <button class="export-btn" onclick="exportData('json')">
+                                <i class="fas fa-file-json"></i> Download JSON
+                            </button>
+                            <button class="export-btn" onclick="exportData('summary')">
+                                <i class="fas fa-file-pdf"></i> Download Summary
+                            </button>
+                        </div>
+
+                        <div class="alert-box">
+                            <strong><i class="fas fa-info-circle"></i> Info:</strong>
+                            Files are saved to the server's export directory and can be downloaded.
+                        </div>
+
+                        <div id="exportStatus"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Email Alerts Tab -->
+            <div class="tab-pane fade" id="alerts">
+                <div class="card">
+                    <div class="card-header">
+                        <i class="fas fa-bell"></i> Email Alert Configuration
+                    </div>
+                    <div class="card-body">
+                        <div class="email-config">
+                            <h5><i class="fas fa-envelope"></i> Configure Email Alerts</h5>
+                            <form id="emailForm">
+                                <div class="mb-3">
+                                    <label class="form-label">Sender Email</label>
+                                    <input type="email" class="form-control" id="senderEmail" placeholder="your-email@gmail.com">
+                                    <small class="text-muted">Gmail account to send alerts from</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Email Password (App Password)</label>
+                                    <input type="password" class="form-control" id="emailPassword">
+                                    <small class="text-muted">Use Gmail App Password (not your regular password)</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Recipient Emails (comma-separated)</label>
+                                    <textarea class="form-control" id="recipients" rows="3" placeholder="admin@example.com, manager@example.com"></textarea>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label class="form-label">Confidence Threshold for Alerts</label>
+                                    <input type="range" class="form-range" id="alertThreshold" min="0" max="100" value="80">
+                                    <small id="thresholdDisplay">Alert when confidence > 80%</small>
+                                </div>
+
+                                <button type="button" class="btn btn-primary" onclick="configureAlerts()">
+                                    <i class="fas fa-cog"></i> Configure Alerts
+                                </button>
+                                <button type="button" class="btn btn-primary" onclick="testEmail()">
+                                    <i class="fas fa-paper-plane"></i> Send Test Email
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="alert-box">
+                            <strong><i class="fas fa-warning"></i> Security Note:</strong>
+                            Your credentials are only used for sending emails and are not stored permanently. 
+                            Use Gmail App Passwords for better security.
+                        </div>
+
+                        <div id="alertStatus"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <footer>
+        <p><i class="fas fa-satellite"></i> Satellite Fire Detection Dashboard v1.0</p>
+        <p>Powered by NASA satellite imagery and advanced ML detection</p>
+        <p style="font-size: 0.9rem; margin-top: 1rem;">© 2024 - All Rights Reserved</p>
+    </footer>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.4.0/dist/axios.min.js"></script>
+
+    <script>
+        // API Base URL
+        const API_BASE = '/api';
+
+        // Initialize map
+        let map;
+        let markers = [];
+
+        function initMap() {
+            map = L.map('map').setView([35.0, -110.0], 7);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenStreetMap contributors',
+                maxZoom: 19
+            }).addTo(map);
+        }
+
+        function showMessage(msg, type = 'success') {
+            const element = type === 'success' ? document.getElementById('successMsg') : document.getElementById('errorMsg');
+            element.textContent = msg;
+            element.style.display = 'block';
+            setTimeout(() => element.style.display = 'none', 5000);
+        }
+
+        function detectFires() {
+            detectType('fire');
+        }
+
+        function detectSmoke() {
+            detectType('smoke');
+        }
+
+        async function detectType(type) {
+            const lat = parseFloat(document.getElementById('latitude').value);
+            const lon = parseFloat(document.getElementById('longitude').value);
+            const radius = parseFloat(document.getElementById('radius').value);
+            const confidence = parseFloat(document.getElementById('confidence').value) / 100;
+
+            if (!lat || !lon) {
+                showMessage('Please enter valid coordinates', 'error');
+                return;
+            }
+
+            document.getElementById('detectLoading').style.display = 'block';
+            document.getElementById('detectionResults').innerHTML = '';
+
+            try {
+                const endpoint = type === 'fire' ? `${API_BASE}/detect/fires` : `${API_BASE}/detect/smoke`;
+                const response = await axios.post(endpoint, {
+                    coordinates: [lat, lon],
+                    radius_km: radius,
+                    confidence_threshold: confidence
+                });
+
+                displayDetectionResults(response.data, type);
+                updateMap(response.data.detections, lat, lon, radius);
+                showMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} detection completed!`, 'success');
+            } catch (error) {
+                showMessage(`Error: ${error.response?.data?.detail || error.message}`, 'error');
+            } finally {
+                document.getElementById('detectLoading').style.display = 'none';
+            }
+        }
+
+        function displayDetectionResults(data, type) {
+            const results = document.getElementById('detectionResults');
+            const detections = data.detections || [];
+
+            let html = `<div class="alert alert-info">Found ${detections.length} ${type}(s)</div>`;
+
+            detections.forEach((det, idx) => {
+                const confidence = (det.confidence * 100).toFixed(1);
+                const confClass = confidence >= 90 ? 'alert-high' : confidence >= 70 ? 'alert-medium' : 'alert-low';
+                
+                html += `
+                    <div class="alert-box ${confClass}">
+                        <div class="row">
+                            <div class="col-md-8">
+                                <strong><i class="fas fa-map-marker"></i> Detection ${idx + 1}</strong><br>
+                                Location: ${det.latitude?.toFixed(4)}, ${det.longitude?.toFixed(4)}<br>
+                                Power: ${det.power_mw?.toFixed(0) || 'N/A'} MW
+                            </div>
+                            <div class="col-md-4">
+                                <div class="confidence-bar" style="width: 100%; background: linear-gradient(90deg, #ff4444 0%, #28a745 100%);">
+                                    <div>${confidence}%</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+
+            results.innerHTML = html;
+        }
+
+        function updateMap(detections, lat, lon, radius) {
+            // Clear old markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            // Add center marker
+            L.circleMarker([lat, lon], {
+                radius: 8,
+                fillColor: '#0066cc',
+                color: '#0066cc',
+                weight: 2,
+                opacity: 1,
+                fillOpacity: 0.8
+            }).addTo(map).bindPopup('Search Center');
+
+            // Add detection markers
+            detections.forEach(det => {
+                const confidence = det.confidence;
+                const color = confidence >= 0.9 ? 'red' : confidence >= 0.7 ? 'orange' : 'yellow';
+                
+                const marker = L.circleMarker([det.latitude, det.longitude], {
+                    radius: 10,
+                    fillColor: color,
+                    color: color,
+                    weight: 2,
+                    opacity: 1,
+                    fillOpacity: 0.8
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <strong>Confidence:</strong> ${(confidence * 100).toFixed(1)}%<br>
+                    <strong>Power:</strong> ${det.power_mw?.toFixed(0) || 'N/A'} MW
+                `);
+
+                markers.push(marker);
+            });
+
+            map.setView([lat, lon], 9);
+        }
+
+        async function loadHistory(days = 1) {
+            try {
+                const response = await axios.get(`${API_BASE}/history?days=${days}`);
+                displayHistory(response.data);
+                showMessage('History loaded successfully!', 'success');
+            } catch (error) {
+                showMessage(`Error loading history: ${error.message}`, 'error');
+            }
+        }
+
+        function displayHistory(data) {
+            const results = document.getElementById('historyResults');
+            const detections = data.detections || [];
+
+            if (detections.length === 0) {
+                results.innerHTML = '<p class="text-muted">No detections found in the selected period.</p>';
+                return;
+            }
+
+            let html = `<p><strong>${detections.length} detections found</strong></p>`;
+            html += '<table class="table table-sm"><thead class="table-light">';
+            html += '<tr><th>Time</th><th>Location</th><th>Confidence</th><th>Power (MW)</th></tr></thead><tbody>';
+
+            detections.slice(0, 50).forEach(det => {
+                html += `
+                    <tr>
+                        <td>${new Date(det.detection_time).toLocaleString()}</td>
+                        <td>${det.latitude?.toFixed(3)}, ${det.longitude?.toFixed(3)}</td>
+                        <td><span class="badge" style="background: ${det.confidence >= 0.8 ? '#ff4444' : '#ffc107'};">${(det.confidence * 100).toFixed(0)}%</span></td>
+                        <td>${det.power_mw?.toFixed(0) || 'N/A'}</td>
+                    </tr>
+                `;
+            });
+
+            html += '</tbody></table>';
+            results.innerHTML = html;
+        }
+
+        async function exportData(format) {
+            try {
+                const response = await axios.get(`${API_BASE}/export/${format}`);
+                showMessage(`Data exported as ${format.toUpperCase()}!`, 'success');
+            } catch (error) {
+                showMessage(`Export error: ${error.message}`, 'error');
+            }
+        }
+
+        async function configureAlerts() {
+            const sender = document.getElementById('senderEmail').value;
+            const password = document.getElementById('emailPassword').value;
+            const recipients = document.getElementById('recipients').value.split(',').map(e => e.trim());
+
+            if (!sender || !password || recipients.length === 0) {
+                showMessage('Please fill all email fields', 'error');
+                return;
+            }
+
+            try {
+                await axios.post(`${API_BASE}/alerts/configure`, {
+                    sender_email: sender,
+                    sender_password: password,
+                    recipients: recipients
+                });
+                showMessage('Email alerts configured successfully!', 'success');
+            } catch (error) {
+                showMessage(`Configuration error: ${error.message}`, 'error');
+            }
+        }
+
+        async function testEmail() {
+            try {
+                await axios.post(`${API_BASE}/alerts/test`);
+                showMessage('Test email sent! Check your inbox.', 'success');
+            } catch (error) {
+                showMessage(`Error sending test email: ${error.message}`, 'error');
+            }
+        }
+
+        // Update slider displays
+        document.getElementById('confidence').addEventListener('input', (e) => {
+            document.getElementById('confidenceDisplay').textContent = e.target.value + '%';
+        });
+
+        document.getElementById('alertThreshold').addEventListener('input', (e) => {
+            document.getElementById('thresholdDisplay').textContent = `Alert when confidence > ${e.target.value}%`;
+        });
+
+        // Initialize on load
+        window.addEventListener('load', () => {
+            initMap();
+            // Load initial stats
+            loadStats();
+        });
+
+        async function loadStats() {
+            try {
+                const response = await axios.get(`${API_BASE}/stats`);
+                const stats = response.data;
+                document.getElementById('totalFires').textContent = stats.total_detections || '0';
+                document.getElementById('avgConfidence').textContent = (stats.average_confidence * 100).toFixed(0) + '%' || '0%';
+                document.getElementById('alertsSent').textContent = stats.alerts_sent || '0';
+                document.getElementById('totalPower').textContent = (stats.total_thermal_power_mw || 0).toFixed(0) + ' MW';
+            } catch (error) {
+                console.log('Could not load stats');
+            }
+        }
+    </script>
+</body>
+</html>
