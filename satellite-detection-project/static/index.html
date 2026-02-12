@@ -383,11 +383,6 @@
                 </a>
             </li>
             <li class="nav-item">
-                <a class="nav-link" href="#detect" data-bs-toggle="tab">
-                    <i class="fas fa-search"></i> Detect
-                </a>
-            </li>
-            <li class="nav-item">
                 <a class="nav-link" href="#history" data-bs-toggle="tab">
                     <i class="fas fa-history"></i> History
                 </a>
@@ -409,8 +404,11 @@
             <!-- Dashboard Tab -->
             <div class="tab-pane fade show active" id="dashboard">
                 <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-map"></i> Detection Map
+                    <div class="card-header d-flex justify-content-between align-items-center">
+                        <span><i class="fas fa-map"></i> Detection Map</span>
+                        <button class="btn btn-sm btn-primary" onclick="autoScanGlobalFires()">
+                            <i class="fas fa-sync-alt"></i> Refresh Global Scan
+                        </button>
                     </div>
                     <div class="card-body">
                         <div id="map"></div>
@@ -419,6 +417,9 @@
                             <i class="fas fa-circle" style="color: orange;"></i> Medium Confidence (70-90%) |
                             <i class="fas fa-circle" style="color: yellow;"></i> Low Confidence (<70%)
                         </p>
+                        <div id="dataSourceInfo" style="margin-top: 0.5rem; padding: 8px; background: #f8f9fa; border-radius: 4px; font-size: 0.85rem;">
+                            <strong>Data Source:</strong> <span id="dataSourceLabel">Fetching NASA FIRMS data...</span>
+                        </div>
                     </div>
                 </div>
 
@@ -430,65 +431,6 @@
                         <div id="recentDetections" style="max-height: 400px; overflow-y: auto;">
                             <p class="text-muted">No detections yet. Run a detection to see results here.</p>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Detect Tab -->
-            <div class="tab-pane fade" id="detect">
-                <div class="card">
-                    <div class="card-header">
-                        <i class="fas fa-search"></i> Fire & Smoke Detection
-                    </div>
-                    <div class="card-body">
-                        <form id="detectionForm">
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Latitude</label>
-                                        <input type="number" class="form-control" id="latitude" step="0.001" value="35.0" required>
-                                        <small class="text-muted">e.g., 35.0 for 35°N</small>
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Longitude</label>
-                                        <input type="number" class="form-control" id="longitude" step="0.001" value="-110.0" required>
-                                        <small class="text-muted">e.g., -110.0 for 110°W</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="row">
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Search Radius (km)</label>
-                                        <input type="number" class="form-control" id="radius" min="1" max="200" value="50">
-                                    </div>
-                                </div>
-                                <div class="col-md-6">
-                                    <div class="mb-3">
-                                        <label class="form-label">Confidence Threshold</label>
-                                        <input type="range" class="form-range" id="confidence" min="0" max="100" value="70">
-                                        <small id="confidenceDisplay">70%</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <button type="button" class="btn btn-primary" onclick="detectFires()">
-                                <i class="fas fa-fire"></i> Detect Fires
-                            </button>
-                            <button type="button" class="btn btn-primary" onclick="detectSmoke()">
-                                <i class="fas fa-cloud"></i> Detect Smoke
-                            </button>
-                        </form>
-
-                        <div class="loading" id="detectLoading">
-                            <div class="spinner"></div>
-                            <p>Analyzing satellite imagery...</p>
-                        </div>
-
-                        <div id="detectionResults" style="margin-top: 2rem;"></div>
                     </div>
                 </div>
             </div>
@@ -561,13 +503,13 @@
                             <form id="emailForm">
                                 <div class="mb-3">
                                     <label class="form-label">Sender Email</label>
-                                    <input type="email" class="form-control" id="senderEmail" placeholder="your-email@gmail.com">
+                                    <input type="email" class="form-control" id="senderEmail" placeholder="your-email@gmail.com" autocomplete="email">
                                     <small class="text-muted">Gmail account to send alerts from</small>
                                 </div>
 
                                 <div class="mb-3">
                                     <label class="form-label">Email Password (App Password)</label>
-                                    <input type="password" class="form-control" id="emailPassword">
+                                    <input type="password" class="form-control" id="emailPassword" autocomplete="current-password">
                                     <small class="text-muted">Use Gmail App Password (not your regular password)</small>
                                 </div>
 
@@ -626,10 +568,47 @@
 
         function initMap() {
             map = L.map('map').setView([35.0, -110.0], 7);
-            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            
+            // Define different tile layers - using free, reliable providers
+            const osmLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
                 attribution: '© OpenStreetMap contributors',
-                maxZoom: 19
-            }).addTo(map);
+                maxZoom: 19,
+                label: 'OpenStreetMap'
+            });
+            
+            // Google Satellite (free, no key required)
+            const googleSatellite = L.tileLayer('https://{s}.google.com/vt/lyrs=s&x={x}&y={y}&z={z}', {
+                maxZoom: 20,
+                subdomains: ['mt0', 'mt1', 'mt2', 'mt3'],
+                attribution: '© Google',
+                label: 'Google Satellite'
+            });
+            
+            // USGS Satellite Imagery
+            const usgsImagery = L.tileLayer('https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}', {
+                maxZoom: 16,
+                attribution: '© USGS',
+                label: 'USGS Imagery'
+            });
+            
+            const topoLayer = L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+                attribution: '© OpenTopoMap',
+                maxZoom: 19,
+                label: 'Topographic'
+            });
+            
+            // Set Google Satellite as default
+            googleSatellite.addTo(map);
+            
+            // Add layer control
+            const baseLayers = {
+                'Google Satellite': googleSatellite,
+                'USGS Satellite': usgsImagery,
+                'OpenStreetMap': osmLayer,
+                'Topographic': topoLayer
+            };
+            
+            L.control.layers(baseLayers, null, { position: 'topright' }).addTo(map);
         }
 
         function showMessage(msg, type = 'success') {
@@ -639,115 +618,86 @@
             setTimeout(() => element.style.display = 'none', 5000);
         }
 
-        function detectFires() {
-            detectType('fire');
-        }
-
-        function detectSmoke() {
-            detectType('smoke');
-        }
-
-        async function detectType(type) {
-            const lat = parseFloat(document.getElementById('latitude').value);
-            const lon = parseFloat(document.getElementById('longitude').value);
-            const radius = parseFloat(document.getElementById('radius').value);
-            const confidence = parseFloat(document.getElementById('confidence').value) / 100;
-
-            if (!lat || !lon) {
-                showMessage('Please enter valid coordinates', 'error');
-                return;
-            }
-
-            document.getElementById('detectLoading').style.display = 'block';
-            document.getElementById('detectionResults').innerHTML = '';
-
-            try {
-                const endpoint = type === 'fire' ? `${API_BASE}/detect/fires` : `${API_BASE}/detect/smoke`;
-                const response = await axios.post(endpoint, {
-                    coordinates: [lat, lon],
-                    radius_km: radius,
-                    confidence_threshold: confidence
-                });
-
-                displayDetectionResults(response.data, type);
-                updateMap(response.data.detections, lat, lon, radius);
-                showMessage(`${type.charAt(0).toUpperCase() + type.slice(1)} detection completed!`, 'success');
-            } catch (error) {
-                showMessage(`Error: ${error.response?.data?.detail || error.message}`, 'error');
-            } finally {
-                document.getElementById('detectLoading').style.display = 'none';
-            }
-        }
-
-        function displayDetectionResults(data, type) {
-            const results = document.getElementById('detectionResults');
-            const detections = data.detections || [];
-
-            let html = `<div class="alert alert-info">Found ${detections.length} ${type}(s)</div>`;
-
-            detections.forEach((det, idx) => {
-                const confidence = (det.confidence * 100).toFixed(1);
-                const confClass = confidence >= 90 ? 'alert-high' : confidence >= 70 ? 'alert-medium' : 'alert-low';
-                
-                html += `
-                    <div class="alert-box ${confClass}">
-                        <div class="row">
-                            <div class="col-md-8">
-                                <strong><i class="fas fa-map-marker"></i> Detection ${idx + 1}</strong><br>
-                                Location: ${det.latitude?.toFixed(4)}, ${det.longitude?.toFixed(4)}<br>
-                                Power: ${det.power_mw?.toFixed(0) || 'N/A'} MW
-                            </div>
-                            <div class="col-md-4">
-                                <div class="confidence-bar" style="width: 100%; background: linear-gradient(90deg, #ff4444 0%, #28a745 100%);">
-                                    <div>${confidence}%</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                `;
-            });
-
-            results.innerHTML = html;
-        }
-
         function updateMap(detections, lat, lon, radius) {
+            console.log(`updateMap called with ${detections.length} detections`);
+            
             // Clear old markers
             markers.forEach(m => map.removeLayer(m));
             markers = [];
 
-            // Add center marker
-            L.circleMarker([lat, lon], {
-                radius: 8,
-                fillColor: '#0066cc',
+            // Add search radius circle
+            L.circle([lat, lon], {
+                radius: radius * 1000,  // Convert km to meters
                 color: '#0066cc',
                 weight: 2,
+                opacity: 0.3,
+                fillOpacity: 0.1
+            }).addTo(map);
+
+            // Add center marker - large and visible
+            const centerMarker = L.circle([lat, lon], {
+                radius: 5000,  // 5 km circle for visibility
+                fillColor: '#0066cc',
+                color: '#0066cc',
+                weight: 3,
                 opacity: 1,
-                fillOpacity: 0.8
-            }).addTo(map).bindPopup('Search Center');
+                fillOpacity: 0.3
+            }).addTo(map);
+            
+            centerMarker.bindPopup('<strong>🎯 Search Center</strong><br>' + lat.toFixed(4) + ', ' + lon.toFixed(4));
+            markers.push(centerMarker);
 
-            // Add detection markers
-            detections.forEach(det => {
-                const confidence = det.confidence;
-                const color = confidence >= 0.9 ? 'red' : confidence >= 0.7 ? 'orange' : 'yellow';
-                
-                const marker = L.circleMarker([det.latitude, det.longitude], {
-                    radius: 10,
-                    fillColor: color,
-                    color: color,
-                    weight: 2,
-                    opacity: 1,
-                    fillOpacity: 0.8
-                }).addTo(map);
+            // Add detection markers - LARGE and prominent
+            if (detections && detections.length > 0) {
+                detections.forEach((det, idx) => {
+                    const confidence = det.confidence;
+                    let color, label;
+                    
+                    if (confidence >= 0.9) {
+                        color = '#ff0000';  // Red - High confidence
+                        label = '🔥 HIGH';
+                    } else if (confidence >= 0.7) {
+                        color = '#ff8800';  // Orange - Medium confidence
+                        label = '⚠️ MED';
+                    } else {
+                        color = '#ffff00';  // Yellow - Low confidence
+                        label = '⚡ LOW';
+                    }
+                    
+                    // Large circle for visibility
+                    const marker = L.circle([det.latitude, det.longitude], {
+                        radius: 15000,  // 15 km circle = very visible
+                        fillColor: color,
+                        color: color,
+                        weight: 4,
+                        opacity: 1,
+                        fillOpacity: 0.6
+                    }).addTo(map);
 
-                marker.bindPopup(`
-                    <strong>Confidence:</strong> ${(confidence * 100).toFixed(1)}%<br>
-                    <strong>Power:</strong> ${det.power_mw?.toFixed(0) || 'N/A'} MW
-                `);
+                    // Detailed popup
+                    marker.bindPopup(`
+                        <div style="font-size: 14px;">
+                            <strong>${label} Confidence Fire</strong><br>
+                            📍 Lat: ${det.latitude.toFixed(4)}<br>
+                            📍 Lon: ${det.longitude.toFixed(4)}<br>
+                            🔥 Confidence: ${(confidence * 100).toFixed(1)}%<br>
+                            ⚡ Thermal Power: ${det.power_mw?.toFixed(0) || 'N/A'} MW<br>
+                            📏 Distance: ${det.distance_km?.toFixed(1) || 'N/A'} km
+                        </div>
+                    `);
 
-                markers.push(marker);
-            });
+                    marker.openPopup();  // Auto-open popup so it's visible
+                    markers.push(marker);
+                    console.log(`Added marker ${idx+1}: (${det.latitude}, ${det.longitude}) confidence: ${confidence}`);
+                });
+            } else {
+                console.log('No detections to display');
+                showMessage('No fires detected in this area', 'info');
+            }
 
-            map.setView([lat, lon], 9);
+            // Set view - center on search location with appropriate zoom
+            map.setView([lat, lon], 8);
+            console.log(`Map centered on ${lat}, ${lon} with zoom 8`);
         }
 
         async function loadHistory(days = 1) {
@@ -829,19 +779,137 @@
         }
 
         // Update slider displays
-        document.getElementById('confidence').addEventListener('input', (e) => {
-            document.getElementById('confidenceDisplay').textContent = e.target.value + '%';
-        });
-
         document.getElementById('alertThreshold').addEventListener('input', (e) => {
             document.getElementById('thresholdDisplay').textContent = `Alert when confidence > ${e.target.value}%`;
         });
+
+        // Auto-scan global fire hotspots
+        async function autoScanGlobalFires() {
+            // Global fire-prone regions to scan
+            const globalHotspots = [
+                { name: 'California, USA', lat: 37.7749, lon: -119.4179 },
+                { name: 'Amazon, Brazil', lat: -3.4653, lon: -62.2159 },
+                { name: 'Australia', lat: -25.2744, lon: 133.7751 },
+                { name: 'Indonesia', lat: -0.7893, lon: 113.9213 },
+                { name: 'Mediterranean', lat: 41.9028, lon: 12.4964 },
+                { name: 'Siberia, Russia', lat: 61.5240, lon: 105.3188 },
+                { name: 'Central Africa', lat: 1.6508, lon: 23.5993 },
+                { name: 'India', lat: 20.5937, lon: 78.9629 },
+                { name: 'Southeast Asia', lat: 13.7563, lon: 100.5018 },
+                { name: 'Western Canada', lat: 53.7267, lon: -127.6476 }
+            ];
+
+            console.log('Starting global fire scan...');
+            showMessage('Scanning global fire hotspots...', 'success');
+
+            let allDetections = [];
+            let hasRealData = false;
+            
+            // Scan each hotspot
+            for (const hotspot of globalHotspots) {
+                try {
+                    const response = await axios.post(`${API_BASE}/detect/fires`, {
+                        coordinates: [hotspot.lat, hotspot.lon],
+                        radius_km: 200,
+                        confidence_threshold: 0.5
+                    });
+
+                    // Check if we got real NASA FIRMS data
+                    if (response.data.real_data === true) {
+                        hasRealData = true;
+                    }
+
+                    if (response.data.detections && response.data.detections.length > 0) {
+                        response.data.detections.forEach(det => {
+                            det.region = hotspot.name;
+                            allDetections.push(det);
+                        });
+                        console.log(`${hotspot.name}: Found ${response.data.detections.length} fires`);
+                    }
+                } catch (error) {
+                    console.error(`Error scanning ${hotspot.name}:`, error);
+                }
+            }
+
+            // Update data source label
+            const dataSourceLabel = document.getElementById('dataSourceLabel');
+            if (dataSourceLabel) {
+                if (hasRealData) {
+                    dataSourceLabel.innerHTML = '<span style="color: green;">✓ NASA FIRMS (Real-time Satellite Data)</span>';
+                } else {
+                    dataSourceLabel.innerHTML = '<span style="color: orange;">⚠️ Demo Data (NASA FIRMS unavailable)</span>';
+                }
+            }
+
+            // Display all detections on map
+            if (allDetections.length > 0) {
+                displayGlobalDetections(allDetections);
+                showMessage(`Global scan complete! Found ${allDetections.length} fires worldwide`, 'success');
+            } else {
+                showMessage('Global scan complete - no active fires detected', 'info');
+            }
+        }
+
+        function displayGlobalDetections(detections) {
+            console.log(`Displaying ${detections.length} global fire detections`);
+            
+            // Clear old markers
+            markers.forEach(m => map.removeLayer(m));
+            markers = [];
+
+            // Add all fire markers
+            detections.forEach((det, idx) => {
+                const confidence = det.confidence;
+                let color, label;
+                
+                if (confidence >= 0.9) {
+                    color = '#ff0000';
+                    label = '🔥';
+                } else if (confidence >= 0.7) {
+                    color = '#ff8800';
+                    label = '⚠️';
+                } else {
+                    color = '#ffcc00';
+                    label = '⚡';
+                }
+                
+                // Large visible circle
+                const marker = L.circle([det.latitude, det.longitude], {
+                    radius: 50000,  // 50 km radius
+                    fillColor: color,
+                    color: color,
+                    weight: 2,
+                    opacity: 0.8,
+                    fillOpacity: 0.4
+                }).addTo(map);
+
+                marker.bindPopup(`
+                    <div style="font-size: 13px;">
+                        <strong>${label} ${det.region || 'Fire Detection'}</strong><br>
+                        📍 ${det.latitude.toFixed(3)}°, ${det.longitude.toFixed(3)}°<br>
+                        🔥 Confidence: ${(confidence * 100).toFixed(0)}%<br>
+                        ⚡ Power: ${det.power_mw?.toFixed(0) || 'N/A'} MW
+                    </div>
+                `);
+
+                markers.push(marker);
+            });
+
+            // Set global view
+            map.setView([20, 0], 2);
+            console.log('Map set to global view');
+            
+            // Update stats
+            loadStats();
+        }
 
         // Initialize on load
         window.addEventListener('load', () => {
             initMap();
             // Load initial stats
             loadStats();
+            // Auto-scan global fire hotspots
+            autoScanGlobalFires();
         });
 
         async function loadStats() {

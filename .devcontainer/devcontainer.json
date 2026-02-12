@@ -1,12 +1,6 @@
 {
   "name": "Satellite Imagery Detection Project",
   "dockerFile": "Dockerfile",
-  "features": {
-    "ghcr.io/devcontainers/features/python:3": {
-      "version": "3.11"
-    },
-    "ghcr.io/devcontainers/features/git:1": {}
-  },
   "customizations": {
     "vscode": {
       "extensions": [
